@@ -1,0 +1,517 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f78">
+  <title>PayTrack — Salary, Attendance & PF</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="PayTrack home">
+        <span class="brand-mark">P</span>
+        <span><b>PayTrack</b><small>PERSONAL PAYROLL</small></span>
+      </a>
+      <div class="top-actions">
+        <span class="save-indicator" id="saveIndicator"><i></i> Saved locally</span>
+        <button class="icon-btn" id="menuBtn" aria-label="Open menu" title="Menu"><span></span><span></span><span></span></button>
+      </div>
+    </header>
+
+    <aside class="drawer-backdrop" id="drawerBackdrop"></aside>
+    <aside class="drawer" id="drawer" aria-label="Application menu">
+      <div class="drawer-head">
+        <div class="brand-mark">P</div>
+        <div><b>PayTrack</b><small>Personal workspace</small></div>
+        <button class="icon-btn close-drawer" id="closeDrawer" aria-label="Close menu">×</button>
+      </div>
+      <div class="drawer-section">WORKSPACE</div>
+      <button class="drawer-link" data-view="dashboard">▦ <span>Dashboard</span></button>
+      <button class="drawer-link" data-view="salary">₹ <span>Salary</span></button>
+      <button class="drawer-link" data-view="attendance">▦ <span>Attendance</span></button>
+      <button class="drawer-link" data-view="pf">◉ <span>PF Management</span></button>
+      <div class="drawer-section">RECORDS & TOOLS</div>
+      <button class="drawer-link" data-view="salaryHistory">◷ <span>Salary History</span></button>
+      <button class="drawer-link" data-view="attendanceHistory">▤ <span>Attendance History</span></button>
+      <button class="drawer-link" data-view="data">⇅ <span>Import / Export & Backup</span></button>
+      <button class="drawer-link" data-view="settings">⚙ <span>Settings</span></button>
+      <button class="drawer-link" data-view="feedback">✎ <span>Suggestions & Feedback</span></button>
+      <div class="drawer-foot">Your records stay on this device.<br><span>Version 1.0 · Offline-ready</span></div>
+    </aside>
+
+    <main class="main-content">
+      <section class="page active" id="page-dashboard">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">YOUR WORKSPACE</div>
+            <h1>Good to see you</h1>
+            <p class="muted">A clear view of your monthly pay and attendance.</p>
+          </div>
+          <div class="month-chip" id="dashMonth"></div>
+        </div>
+        <div class="stat-grid" id="dashboardStats"></div>
+        <div class="dashboard-grid">
+          <article class="panel chart-panel">
+            <div class="panel-head">
+              <div><h2>Salary overview</h2><p class="muted">Current month breakdown</p></div>
+              <span class="pill">MONTHLY</span>
+            </div>
+            <div class="chart-wrap">
+              <div class="donut" id="salaryDonut">
+                <div><small>IN-HAND</small><strong id="donutValue">₹0</strong></div>
+              </div>
+              <div class="legend" id="salaryLegend"></div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div><h2>Attendance snapshot</h2><p class="muted">Current month status</p></div>
+              <button class="text-btn" data-nav="attendance">View calendar →</button>
+            </div>
+            <div class="attendance-ring-wrap">
+              <div class="attendance-ring" id="attendanceRing">
+                <strong id="attendancePercent">0%</strong><small>present</small>
+              </div>
+              <div class="mini-stats" id="attendanceMini"></div>
+            </div>
+          </article>
+          <article class="panel wide">
+            <div class="panel-head">
+              <div><h2>Recent salary trend</h2><p class="muted">Saved monthly in-hand salary</p></div>
+              <button class="text-btn" data-nav="salaryHistory">View history →</button>
+            </div>
+            <div class="bar-chart" id="salaryTrend">
+              <div class="empty-state">Save monthly salary records to see your trend.</div>
+            </div>
+          </article>
+        </div>
+        <div class="notice">
+          <span>ⓘ</span>
+          <div>
+            <b>Keep your records safe</b>
+            <p>PayTrack stores data in this browser on this device. Export a backup regularly. Clearing browser data or losing the device may remove your records.</p>
+          </div>
+          <button class="text-btn" data-nav="data">Backup now →</button>
+        </div>
+      </section>
+
+      <section class="page" id="page-salary">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">PAYROLL</div>
+            <h1>Salary calculator</h1>
+            <p class="muted">Estimate your earned salary and monthly take-home pay.</p>
+          </div>
+          <div class="month-picker">
+            <label for="salaryMonth">Pay period</label>
+            <input type="month" id="salaryMonth">
+          </div>
+        </div>
+        <div class="salary-layout">
+          <article class="panel form-panel">
+            <div class="panel-head">
+              <div><h2>Salary configuration</h2><p class="muted">Update the figures from your salary slip.</p></div>
+              <span class="pill blue">AUTO CALCULATE</span>
+            </div>
+            <div class="form-grid">
+              <label class="field">
+                <span>Monthly gross salary <button class="info" data-tip="Monthly gross is your regular salary before employee-side deductions. Enter the monthly gross amount used by your employer.">i</button></span>
+                <div class="input-prefix"><b>₹</b><input id="grossSalary" type="number" min="0" step="1" placeholder="30000"></div>
+              </label>
+              <label class="field">
+                <span>Basic salary <button class="info" data-tip="Basic salary is the core component of your pay. PF wages are often based on basic plus eligible allowances; confirm your payslip/company policy.">i</button></span>
+                <div class="input-prefix"><b>₹</b><input id="basicSalary" type="number" min="0" step="1" placeholder="15000"></div>
+              </label>
+              <label class="field">
+                <span>Monthly PF deduction <button class="info" data-tip="Employee PF is deducted from your pay. Employer PF is an employer-side contribution and is not subtracted again from in-hand salary.">i</button></span>
+                <div class="input-prefix"><b>₹</b><input id="employeePF" type="number" min="0" step="1" placeholder="1800"></div>
+                <small class="field-help">Auto-filled from PF settings; editable.</small>
+              </label>
+              <label class="field">
+                <span>Other deductions <button class="info" data-tip="Any additional monthly deductions such as an advance recovery or other company deductions.">i</button></span>
+                <div class="input-prefix"><b>₹</b><input id="otherDeductions" type="number" min="0" step="1" value="0"></div>
+              </label>
+              <label class="field">
+                <span>Paid holidays</span>
+                <div class="input-prefix"><b>₹</b><input id="paidHolidayPay" type="number" min="0" step="1" value="0" disabled></div>
+                <small class="field-help">Calculated from attendance; shown for reference.</small>
+              </label>
+              <label class="field">
+                <span>Unpaid holidays</span>
+                <div class="input-prefix"><b>₹</b><input id="unpaidHolidayPay" type="number" min="0" step="1" value="0" disabled></div>
+                <small class="field-help">Calculated from attendance; shown for reference.</small>
+              </label>
+            </div>
+            <div class="section-divider"></div>
+            <div class="form-grid compact">
+              <label class="field">
+                <span>Calculation method <button class="info" data-tip="Calendar days divides monthly salary by every calendar day in the month. Working days divides it by configured working days (default: Monday to Saturday).">i</button></span>
+                <select id="salaryMethod">
+                  <option value="calendar">Calendar days (default)</option>
+                  <option value="working">Working days</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Travel expenses</span>
+                <div class="input-prefix"><b>₹</b><input id="travelAmount" type="number" min="0" step="1" value="0"></div>
+              </label>
+              <label class="field">
+                <span>Travel treatment</span>
+                <select id="travelMode">
+                  <option value="none">Do not include</option>
+                  <option value="deduct">Deduct from salary</option>
+                  <option value="add">Add reimbursement</option>
+                </select>
+              </label>
+            </div>
+            <div class="action-row">
+              <button class="btn secondary" id="resetSalary">Reset inputs</button>
+              <button class="btn primary" id="saveSalary">Save this month</button>
+            </div>
+          </article>
+          <aside class="panel result-panel">
+            <div class="result-top">
+              <div>
+                <span class="eyebrow light">ESTIMATED IN-HAND</span>
+                <div class="big-amount" id="inHand">₹0</div>
+                <small>for selected month</small>
+              </div>
+              <div class="result-icon">₹</div>
+            </div>
+            <div class="result-list" id="salaryBreakdown"></div>
+            <div class="result-total"><span>Estimated in-hand salary</span><strong id="inHandBottom">₹0</strong></div>
+            <div class="result-meta" id="salaryMeta"></div>
+          </aside>
+        </div>
+        <div class="stat-grid small-grid" id="salaryStats"></div>
+      </section>
+
+      <section class="page" id="page-attendance">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">TIME & PRESENCE</div>
+            <h1>Attendance</h1>
+            <p class="muted">Tap a date to change its status. Unmarked working dates count as present.</p>
+          </div>
+          <div class="month-picker">
+            <label for="attendanceMonth">Attendance month</label>
+            <input type="month" id="attendanceMonth">
+          </div>
+        </div>
+        <div class="stat-grid" id="attendanceStats"></div>
+        <div class="attendance-layout">
+          <article class="panel calendar-panel">
+            <div class="calendar-head">
+              <div><h2 id="calendarTitle">Month</h2><p class="muted">Choose a date to mark attendance</p></div>
+              <div class="calendar-controls">
+                <button class="icon-btn" id="prevMonth" aria-label="Previous month">‹</button>
+                <button class="icon-btn" id="nextMonth" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <div class="calendar-weekdays">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-legend">
+              <span><i class="dot present"></i>Present</span>
+              <span><i class="dot absent"></i>Absent</span>
+              <span><i class="dot paid"></i>Paid holiday</span>
+              <span><i class="dot unpaid"></i>Unpaid holiday</span>
+              <span><i class="dot off"></i>Non-working</span>
+            </div>
+          </article>
+          <aside class="panel attendance-tools">
+            <h2>Quick entry</h2>
+            <p class="muted">Apply a status to multiple dates.</p>
+            <label class="field">
+              <span>Entry method</span>
+              <select id="bulkMode">
+                <option value="present">Present fill</option>
+                <option value="paid">Paid holiday fill</option>
+                <option value="unpaid">Unpaid holiday fill</option>
+                <option value="absent">Absent fill</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Select dates</span>
+              <input type="text" id="bulkDates" placeholder="1, 2, 5-8, 14">
+              <small class="field-help">Example: 1, 2, 5-8. Dates are day numbers.</small>
+            </label>
+            <button class="btn primary full" id="applyBulk">Apply to selected dates</button>
+            <div class="section-divider"></div>
+            <div class="quick-action">
+              <div><b>Undo last change</b><small>Restore the previous attendance state.</small></div>
+              <button class="btn secondary small" id="undoAttendance">Undo</button>
+            </div>
+            <div class="section-divider"></div>
+            <div class="quick-action">
+              <div><b>Advanced attendance</b><small>Allow previous-date and bulk edits.</small></div>
+              <label class="switch"><input type="checkbox" id="advancedToggle"><span></span></label>
+            </div>
+            <div class="warning-note">Changing a saved attendance date may affect your salary estimate. Confirm changes carefully.</div>
+          </aside>
+        </div>
+        <div class="panel history-panel">
+          <div class="panel-head"><div><h2>Change history</h2><p class="muted">Recent attendance edits for this month.</p></div></div>
+          <div id="attendanceLog" class="log-list"><div class="empty-state">No changes yet.</div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-pf">
+        <div class="page-heading">
+          <div><div class="eyebrow">RETIREMENT SAVINGS</div><h1>Provident Fund</h1><p class="muted">Understand employee and employer contributions separately.</p></div>
+          <div class="pill blue">PF CALCULATOR</div>
+        </div>
+        <div class="pf-layout">
+          <article class="panel form-panel">
+            <div class="panel-head">
+              <div><h2>PF configuration</h2><p class="muted">Set your PF wage base and company contribution policy.</p></div>
+            </div>
+            <div class="field-row-ceiling">
+              <label class="field">
+                <span>Monthly PF wages <button class="info" data-tip="PF wages are the eligible wage amount used as the contribution base. This may differ from gross salary.">i</button></span>
+                <div class="input-prefix"><b>₹</b><input id="pfWages" type="number" min="0" step="1" value="15000"></div>
+              </label>
+              <div class="ceiling-control">
+                <span>Wage ceiling</span>
+                <label class="switch"><input type="checkbox" id="ceilingToggle" checked><span></span></label>
+                <b id="ceilingLabel">ON · ₹25,000</b>
+              </div>
+            </div>
+            <p class="field-help">ON: contribution wage is capped at ₹25,000. OFF: use full PF wages, subject to your company policy.</p>
+            <div class="form-grid">
+              <label class="field">
+                <span>Employee contribution rate</span>
+                <div class="input-suffix"><input id="employeeRate" type="number" min="0" max="100" step=".01" value="12"><b>%</b></div>
+              </label>
+              <label class="field">
+                <span>Employer contribution rate</span>
+                <div class="input-suffix"><input id="employerRate" type="number" min="0" max="100" step=".01" value="12"><b>%</b></div>
+              </label>
+              <label class="field">
+                <span>EPS rate (employer share)</span>
+                <div class="input-suffix"><input id="epsRate" type="number" min="0" max="100" step=".01" value="8.33"><b>%</b></div>
+              </label>
+              <label class="field">
+                <span>Company PF policy</span>
+                <div class="input-suffix"><input id="companyRate" type="number" min="0" max="100" step=".01" value="8.33"><b>%</b></div>
+                <small class="field-help">Reference rate; EPS is limited to employer share.</small>
+              </label>
+            </div>
+            <div class="action-row">
+              <button class="btn secondary" id="resetPF">Default rates</button>
+              <button class="btn primary" id="savePF">Save PF settings</button>
+            </div>
+          </article>
+          <aside class="panel pf-summary">
+            <div class="eyebrow light">MONTHLY PF CONTRIBUTION</div>
+            <div class="pf-total" id="pfTotal">₹0</div>
+            <p>Employee + employer contribution</p>
+            <div class="pf-split">
+              <div><span class="split-dot employee"></span><small>Employee</small><b id="pfEmployee">₹0</b></div>
+              <div><span class="split-dot employer"></span><small>Employer</small><b id="pfEmployer">₹0</b></div>
+            </div>
+            <div class="pf-note">Only employee PF is deducted from salary. Employer PF is an additional employer-side contribution.</div>
+          </aside>
+        </div>
+        <div class="stat-grid" id="pfStats"></div>
+        <article class="panel">
+          <div class="panel-head"><div><h2>Contribution breakdown</h2><p class="muted">Illustrative monthly calculation based on your settings.</p></div></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Component</th><th>Rate</th><th>Wage base</th><th>Amount</th></tr></thead>
+              <tbody id="pfTable"></tbody>
+            </table>
+          </div>
+          <p class="table-footnote">EPS is shown as a part of the employer contribution, not an extra amount. Actual EPS eligibility, allocation, rounding and company rules may differ.</p>
+        </article>
+      </section>
+
+      <section class="page" id="page-salaryHistory">
+        <div class="page-heading"><div><div class="eyebrow">RECORDS</div><h1>Salary history</h1><p class="muted">Previously saved months remain unchanged when current settings change.</p></div></div>
+        <article class="panel">
+          <div class="panel-head"><h2>Saved salary records</h2><button class="btn secondary small" id="exportSalaryCsv">Export CSV</button></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Month</th><th>Gross earned</th><th>Employee PF</th><th>Other deductions</th><th>In-hand</th><th></th></tr></thead>
+              <tbody id="salaryHistoryTable"></tbody>
+            </table>
+          </div>
+          <div id="salaryHistoryEmpty" class="empty-state">No salary records saved yet.</div>
+        </article>
+      </section>
+
+      <section class="page" id="page-attendanceHistory">
+        <div class="page-heading"><div><div class="eyebrow">RECORDS</div><h1>Attendance history</h1><p class="muted">Monthly attendance summaries and reports.</p></div></div>
+        <article class="panel">
+          <div class="panel-head"><h2>Saved attendance months</h2><button class="btn secondary small" id="exportAttendanceCsv">Export CSV</button></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Month</th><th>Present</th><th>Absent</th><th>Paid holiday</th><th>Unpaid holiday</th><th>Rate</th><th></th></tr></thead>
+              <tbody id="attendanceHistoryTable"></tbody>
+            </table>
+          </div>
+          <div id="attendanceHistoryEmpty" class="empty-state">Attendance history appears after you save a month.</div>
+        </article>
+      </section>
+
+      <section class="page" id="page-data">
+        <div class="page-heading"><div><div class="eyebrow">YOUR DATA</div><h1>Import, export & backup</h1><p class="muted">Keep a separate copy of your personal payroll records.</p></div></div>
+        <div class="data-grid">
+          <article class="panel">
+            <div class="feature-icon">⇩</div>
+            <h2>Export complete backup</h2>
+            <p class="muted">Download all settings, attendance, salary and PF history as a JSON file.</p>
+            <button class="btn primary full" id="exportBackup">Download JSON backup</button>
+          </article>
+          <article class="panel">
+            <div class="feature-icon">⇧</div>
+            <h2>Import a backup</h2>
+            <p class="muted">Import an earlier PayTrack JSON backup. Existing records are merged; matching months are not silently replaced.</p>
+            <label class="btn secondary full file-label">Choose backup file<input type="file" id="importFile" accept=".json,application/json"></label>
+          </article>
+          <article class="panel">
+            <div class="feature-icon">▤</div>
+            <h2>Monthly reports</h2>
+            <p class="muted">Download a salary or attendance CSV, or print your attendance report.</p>
+            <div class="stack-buttons">
+              <button class="btn secondary full" id="downloadCurrentSalary">Download salary CSV</button>
+              <button class="btn secondary full" id="downloadCurrentAttendance">Download attendance CSV</button>
+              <button class="btn secondary full" id="printAttendance">Print attendance report</button>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="feature-icon">↻</div>
+            <h2>Restore & safety</h2>
+            <p class="muted">Restore is a merge operation by default. To avoid data loss, duplicate month keys are skipped.</p>
+            <button class="btn secondary full" id="shareBackup">Share backup</button>
+            <small class="field-help">Native sharing is available on supported devices; otherwise a JSON download is offered.</small>
+          </article>
+        </div>
+        <div class="notice">
+          <span>⚠</span>
+          <div>
+            <b>Local storage warning</b>
+            <p>Your data is stored only in this browser on this device. Clearing site data, uninstalling the browser, or losing the device can remove it. Back up regularly and keep the backup somewhere safe.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-heading"><div><div class="eyebrow">PREFERENCES</div><h1>Settings</h1><p class="muted">Choose how PayTrack calculates and displays your records.</p></div></div>
+        <div class="settings-grid">
+          <article class="panel settings-card">
+            <h2>Appearance & language</h2>
+            <label class="setting-row">
+              <span><b>Language</b><small>Interface language</small></span>
+              <select id="languageSetting"><option value="en">English</option><option value="hi">हिन्दी</option></select>
+            </label>
+            <label class="setting-row">
+              <span><b>Theme</b><small>Light or dark appearance</small></span>
+              <select id="themeSetting"><option value="light">Light</option><option value="dark">Dark</option></select>
+            </label>
+          </article>
+          <article class="panel settings-card">
+            <h2>Salary defaults</h2>
+            <label class="setting-row">
+              <span><b>Default calculation method</b><small>Used for new salary periods</small></span>
+              <select id="defaultMethod"><option value="calendar">Calendar days</option><option value="working">Working days</option></select>
+            </label>
+            <label class="setting-row">
+              <span><b>Travel expense treatment</b><small>Default travel setting</small></span>
+              <select id="defaultTravel"><option value="none">Do not include</option><option value="deduct">Deduct from salary</option><option value="add">Add reimbursement</option></select>
+            </label>
+          </article>
+          <article class="panel settings-card">
+            <h2>Attendance rules</h2>
+            <label class="setting-row">
+              <span><b>Default calendar click action</b><small>What happens when a date is tapped</small></span>
+              <select id="clickAction">
+                <option value="absent">Mark absent</option><option value="present">Mark present</option><option value="paid">Mark paid holiday</option><option value="unpaid">Mark unpaid holiday</option>
+              </select>
+            </label>
+            <label class="setting-row">
+              <span><b>Advanced attendance mode</b><small>Allow previous-date and bulk edits</small></span>
+              <label class="switch"><input type="checkbox" id="settingsAdvanced"><span></span></label>
+            </label>
+            <label class="setting-row">
+              <span><b>Non-working days</b><small>Exclude these days in working-day method</small></span>
+              <div class="weekday-picks" id="weekdayPicks">
+                <label><input type="checkbox" value="0" checked>Sun</label>
+                <label><input type="checkbox" value="6">Sat</label>
+              </div>
+            </label>
+          </article>
+          <article class="panel settings-card">
+            <h2>PF defaults</h2>
+            <label class="setting-row">
+              <span><b>Statutory wage ceiling</b><small>Apply a ₹25,000 contribution wage cap</small></span>
+              <label class="switch"><input type="checkbox" id="settingsCeiling" checked><span></span></label>
+            </label>
+            <label class="setting-row">
+              <span><b>Wage ceiling amount</b><small>Editable if applicable rules change</small></span>
+              <div class="input-prefix setting-input"><b>₹</b><input type="number" id="ceilingAmount" min="0" value="25000"></div>
+            </label>
+            <label class="setting-row">
+              <span><b>Employee / employer rate</b><small>Default contribution rates</small></span>
+              <strong>12% / 12%</strong>
+            </label>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="page-feedback">
+        <div class="page-heading"><div><div class="eyebrow">HELP US IMPROVE</div><h1>Suggestions & feedback</h1><p class="muted">Save a personal note or prepare an email with your feedback.</p></div></div>
+        <div class="feedback-layout">
+          <article class="panel">
+            <h2>Write a suggestion</h2>
+            <label class="field"><span>Type</span>
+              <select id="feedbackType">
+                <option>Feature request</option><option>Bug report</option><option>General feedback</option><option>Personal note</option>
+              </select>
+            </label>
+            <label class="field"><span>Title</span><input id="feedbackTitle" type="text" placeholder="A short title"></label>
+            <label class="field"><span>Details</span><textarea id="feedbackBody" rows="5" placeholder="Describe your suggestion or issue..."></textarea></label>
+            <div class="action-row">
+              <button class="btn secondary" id="saveNote">Save note</button>
+              <button class="btn primary" id="sendFeedback">Open email draft</button>
+            </div>
+            <small class="field-help">Email draft opens in your email app addressed to lalitmohanpanday1234@gmail.com.</small>
+          </article>
+          <article class="panel">
+            <h2>Saved notes</h2>
+            <div id="feedbackList" class="log-list"><div class="empty-state">No saved notes yet.</div></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="active" data-view="salary"><span>₹</span><small>Salary</small></button>
+    <button data-view="attendance"><span>▦</span><small>Attendance</small></button>
+    <button data-view="pf"><span>◉</span><small>PF</small></button>
+    <button data-view="dashboard"><span>⌂</span><small>Home</small></button>
+  </nav>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Confirm change</h3>
+        <button class="icon-btn" id="modalClose">×</button>
+      </div>
+      <p id="modalText"></p>
+      <div class="action-row">
+        <button class="btn secondary" id="modalCancel">Cancel</button>
+        <button class="btn primary" id="modalConfirm">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
