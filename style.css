@@ -698,8 +698,6 @@ button {
   margin-top:18px
 }
 
-
-
 .data-grid {
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -1231,8 +1229,6 @@ body.dark .calendar-day.absent {
   }
 }
 
-
-
 .small-grid .stat-card {
   padding:14px
 }
@@ -1571,6 +1567,3 @@ body.dark .calendar-day.absent {
   color:var(--muted);
   font-size:11px
 }
-
-
-
