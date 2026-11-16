@@ -1,4 +1,548 @@
 
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const money = n => new Intl.NumberFormat("en-IN", {
+  style:"currency",
+  currency:"INR",
+  maximumFractionDigits:0
+}).format(Number(n)||0);
+
+const monthKey = d =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+
+const today = new Date();
+
+const defaultSettings = {
+  theme:"light",
+  language:"en",
+  method:"calendar",
+  travelMode:"none",
+  clickAction:"absent",
+  advanced:false,
+  ceiling:true,
+  ceilingAmount:25000,
+  employeeRate:12,
+  employerRate:12,
+  epsRate:8.33,
+  companyRate:8.33,
+  nonWorking:[0]
+};
+
+const defaultSalary = {
+  gross:0,
+  basic:0,
+  employeePF:0,
+  other:0,
+  travel:0,
+  travelMode:"none",
+  method:"calendar"
+};
+
+const state = {
+  settings:{...defaultSettings},
+  salary:{...defaultSalary},
+  pfWages:15000,
+  attendance:{},
+  salaryHistory:{},
+  attendanceHistory:{},
+  logs:{},
+  notes:[],
+  undo:[]
+};
+
+let db=null, toastTimer=null, modalResolve=null;
+
+function toast(message) {
+  const el=$("toast");
+  el.textContent=message;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("show"),2600);
+}
+
+function persistLocal() {
+  try {
+    localStorage.setItem("paytrack_settings",JSON.stringify(state.settings));
+    localStorage.setItem("paytrack_ui",JSON.stringify({
+      salary:state.salary,
+      pfWages:state.pfWages,
+      notes:state.notes
+    }));
+    $("saveIndicator").innerHTML="<i></i> Saved locally";
+  } catch(e) {
+    $("saveIndicator").textContent="Storage full";
+  }
+}
+
+function openDB() {
+  return new Promise(resolve=>{
+    if(!("indexedDB" in window)) {
+      resolve(null);
+      return;
+    }
+
+    const req=indexedDB.open("PayTrackDB",1);
+
+    req.onupgradeneeded=()=>{
+      const d=req.result;
+      ["attendance","salaryHistory","attendanceHistory","logs"].forEach(n=>{
+        if(!d.objectStoreNames.contains(n))
+          d.createObjectStore(n,{keyPath:"key"});
+      });
+    };
+
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>resolve(null);
+  });
+}
+
+function txPut(store,obj) {
+  return new Promise(resolve=>{
+    if(!db) {
+      resolve(false);
+      return;
+    }
+
+    try {
+      const tx=db.transaction(store,"readwrite");
+      tx.objectStore(store).put(obj);
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>resolve(false);
+    } catch(e) {
+      resolve(false);
+    }
+  });
+}
+
+function txAll(store) {
+  return new Promise(resolve=>{
+    if(!db) {
+      resolve([]);
+      return;
+    }
+
+    try {
+      const r=db.transaction(store,"readonly")
+        .objectStore(store).getAll();
+
+      r.onsuccess=()=>resolve(r.result||[]);
+      r.onerror=()=>resolve([]);
+    } catch(e) {
+      resolve([]);
+    }
+  });
+}
+
+async function loadData() {
+  db=await openDB();
+
+  try {
+    const s=JSON.parse(localStorage.getItem("paytrack_settings")||"{}");
+    state.settings={...defaultSettings,...s};
+
+    const ui=JSON.parse(localStorage.getItem("paytrack_ui")||"{}");
+    state.salary={...defaultSalary,...(ui.salary||{})};
+    state.pfWages=Number(ui.pfWages)||15000;
+    state.notes=ui.notes||[];
+  } catch(e) {}
+
+  if(db) {
+    for(const n of ["attendance","salaryHistory","attendanceHistory","logs"]) {
+      const rows=await txAll(n);
+      state[n]=Object.fromEntries(rows.map(x=>[x.key,x.value]));
+    }
+  }
+
+  applyTheme();
+  syncSettingsUI();
+  syncSalaryUI();
+  syncPFUI();
+  renderAll();
+}
+
+function applyTheme() {
+  document.body.classList.toggle("dark",state.settings.theme==="dark");
+}
+
+function saveAllPrefs() {
+  persistLocal();
+}
+
+function currentKey() {
+  return $("salaryMonth").value||monthKey(today);
+}
+
+function currentAttKey() {
+  return $("attendanceMonth").value||monthKey(today);
+}
+
+function monthDate(key) {
+  const [y,m]=key.split("-").map(Number);
+  return new Date(y,m-1,1);
+}
+
+function daysIn(key) {
+  const d=monthDate(key);
+  return new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+}
+
+function isNonWorking(date) {
+  return state.settings.nonWorking.includes(date.getDay());
+}
+
+function getStatus(key,day) {
+  const map=state.attendance[key]||{};
+  const d=monthDate(key);
+  const date=new Date(d.getFullYear(),d.getMonth(),day);
+
+  if(map[day]) return map[day];
+
+  return isNonWorking(date)?"off":"present";
+}
+
+function countAttendance(key) {
+  const days=daysIn(key);
+  const c={
+    present:0,
+    absent:0,
+    paid:0,
+    unpaid:0,
+    off:0,
+    working:0
+  };
+
+  for(let i=1;i<=days;i++) {
+    const s=getStatus(key,i);
+    c[s]=(c[s]||0)+1;
+    if(s!=="off") c.working++;
+  }
+
+  c.payable=c.present+c.paid;
+  c.percent=c.working?
+    Math.round((c.present+c.paid)/c.working*100):0;
+
+  return c;
+}
+
+function workingDays(key) {
+  let n=0;
+
+  for(let i=1;i<=daysIn(key);i++) {
+    const d=monthDate(key);
+
+    if(!isNonWorking(new Date(d.getFullYear(),d.getMonth(),i)))
+      n++;
+  }
+
+  return n;
+}
+
+function pfCalc() {
+  const s=state.settings;
+  const raw=Math.max(0,Number(state.pfWages)||0);
+
+  const base=s.ceiling?
+    Math.min(raw,Number(s.ceilingAmount)||25000):raw;
+
+  const employee=Math.round(base*s.employeeRate/100);
+  const employer=Math.round(base*s.employerRate/100);
+
+  const eps=Math.min(
+    employer,
+    Math.round(base*s.epsRate/100)
+  );
+
+  const epfEmployer=employer-eps;
+
+  return {
+    raw,
+    base,
+    employee,
+    employer,
+    eps,
+    epfEmployer,
+    total:employee+employer
+  };
+}
+
+function calculate(key=currentKey()) {
+  const s=state.salary;
+  const c=countAttendance(key);
+  const days=daysIn(key);
+
+  const denom=s.method==="working"?
+    workingDays(key):days;
+
+  const paidRatio=denom?
+    Math.min(1,c.payable/denom):0;
+
+  const daily=denom?
+    Number(s.gross)/denom:0;
+
+  const earned=Math.round(Number(s.gross)*paidRatio);
+
+  const pf=pfCalc();
+  const pfProrated=Math.round(pf.employee*paidRatio);
+
+  const pfDed=Number(s.employeePF)>0?
+    Math.round(Number(s.employeePF)*paidRatio):pfProrated;
+
+  const other=Math.round(Number(s.other)*paidRatio);
+  const travel=Number(s.travel)||0;
+
+  const travelEffect=
+    s.travelMode==="deduct"?-travel:
+    s.travelMode==="add"?travel:0;
+
+  const inHand=earned-pfDed-other+travelEffect;
+
+  const absentPay=Math.round(daily*(c.absent+c.unpaid));
+  const paidPay=Math.round(daily*c.paid);
+
+  return {
+    key,c,days,denom,daily,earned,pfDed,other,
+    travel,travelEffect,inHand,absentPay,paidPay,paidRatio
+  };
+}
+
+function syncSalaryUI() {
+  const s=state.salary;
+
+  ["grossSalary","basicSalary","employeePF","otherDeductions","travelAmount"]
+    .forEach((id,i)=>{
+      $(id).value=[s.gross,s.basic,s.employeePF,s.other,s.travel][i]??0;
+    });
+
+  $("salaryMethod").value=s.method||state.settings.method;
+  $("travelMode").value=s.travelMode||state.settings.travelMode;
+}
+
+function readSalaryUI() {
+  state.salary={
+    gross:Math.max(0,+$("grossSalary").value||0),
+    basic:Math.max(0,+$("basicSalary").value||0),
+    employeePF:Math.max(0,+$("employeePF").value||0),
+    other:Math.max(0,+$("otherDeductions").value||0),
+    travel:Math.max(0,+$("travelAmount").value||0),
+    travelMode:$("travelMode").value,
+    method:$("salaryMethod").value
+  };
+
+  persistLocal();
+  renderSalary();
+}
+
+function syncPFUI() {
+  const s=state.settings;
+
+  $("pfWages").value=state.pfWages;
+  $("ceilingToggle").checked=s.ceiling;
+  $("employeeRate").value=s.employeeRate;
+  $("employerRate").value=s.employerRate;
+  $("epsRate").value=s.epsRate;
+  $("companyRate").value=s.companyRate;
+
+  $("ceilingLabel").textContent=s.ceiling?
+    `ON · ${money(s.ceilingAmount)}`:"OFF · Full wages";
+}
+
+function readPFUI() {
+  const oldDefault=pfCalc().employee;
+  const autoPF=!state.salary.employeePF||
+    state.salary.employeePF===oldDefault;
+
+  state.pfWages=Math.max(0,+$("pfWages").value||0);
+  state.settings.ceiling=$("ceilingToggle").checked;
+
+  state.settings.employeeRate=clamp(+$("employeeRate").value,0,100,12);
+  state.settings.employerRate=clamp(+$("employerRate").value,0,100,12);
+  state.settings.epsRate=clamp(+$("epsRate").value,0,100,8.33);
+  state.settings.companyRate=clamp(+$("companyRate").value,0,100,8.33);
+
+  if(autoPF) {
+    state.salary.employeePF=pfCalc().employee;
+    $("employeePF").value=state.salary.employeePF;
+  }
+
+  persistLocal();
+  renderPF();
+  renderSalary();
+}
+
+function clamp(n,min,max,fallback) {
+  return Number.isFinite(n)?
+    Math.max(min,Math.min(max,n)):fallback;
+}
+
+function statCard(label,value,foot,icon,tint,accent) {
+  return `<div class="stat-card" style="--tint:${tint||'var(--blue-soft)'};--accent:${accent||'var(--primary)'}">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value">${value}</div>
+    <div class="stat-foot">${foot||""}</div>
+    <span class="stat-icon">${icon||"•"}</span>
+  </div>`;
+}
+
+function renderDashboard() {
+  const key=currentKey();
+  const r=calculate(key);
+  const c=r.c;
+  const stats=$("dashboardStats");
+
+  stats.innerHTML=
+    statCard("In-hand salary",money(r.inHand),"Estimated this month","₹","#e5f0ff","#286bb0")+
+    statCard("Gross salary",money(r.earned),"Earned gross","↗","#e5f7ef","#21966d")+
+    statCard("Present days",c.present,"Including default present days","✓","#e5f7ef","#21966d")+
+    statCard("Employee PF",money(r.pfDed),"Salary deduction","◉","#f1eaff","#8a68ca");
+
+  $("dashMonth").textContent=monthDate(key).toLocaleDateString("en-IN",{
+    month:"long",
+    year:"numeric"
+  });
+
+  $("donutValue").textContent=money(r.inHand);
+
+  const total=Math.max(1,r.earned);
+  const ded=r.pfDed+r.other;
+  const a=Math.max(0,r.inHand)/total*100;
+  const b=Math.max(0,r.pfDed)/total*100;
+
+  $("salaryDonut").style.background=
+    `conic-gradient(#398cda 0 ${a}%,#a8d9f2 ${a}% ${a+b}%,#d8cafa ${a+b}% 100%)`;
+
+  $("salaryLegend").innerHTML=[
+    ["In-hand",money(r.inHand),"#398cda"],
+    ["Employee PF",money(r.pfDed),"#a8d9f2"],
+    ["Other deductions",money(r.other),"#d8cafa"]
+  ].map(x=>`<div class="legend-row">
+    <i style="background:${x[2]}"></i>${x[0]}<b>${x[1]}</b>
+  </div>`).join("");
+
+  $("attendancePercent").textContent=c.percent+"%";
+  $("attendanceRing").style.setProperty("--pct",c.percent+"%");
+
+  $("attendanceMini").innerHTML=`
+    <div>Present <b>${c.present}</b></div>
+    <div>Absent <b>${c.absent}</b></div>
+    <div>Paid holidays <b>${c.paid}</b></div>
+    <div>Unpaid holidays <b>${c.unpaid}</b></div>`;
+
+  const rows=Object.values(state.salaryHistory)
+    .sort((a,b)=>a.key.localeCompare(b.key))
+    .slice(-6);
+
+  if(!rows.length) {
+    $("salaryTrend").innerHTML=
+      '<div class="empty-state">Save monthly salary records to see your trend.</div>';
+    return;
+  }
+
+  const max=Math.max(1,...rows.map(x=>x.inHand));
+
+  $("salaryTrend").innerHTML=rows.map(x=>`
+    <div class="bar-item" title="${x.key}: ${money(x.inHand)}">
+      <b>${money(x.inHand)}</b>
+      <div class="bar" style="height:${Math.max(4,x.inHand/max*115)}px"></div>
+      <small>${monthDate(x.key).toLocaleDateString("en-IN",{month:"short"})}</small>
+    </div>`).join("");
+}
+
+function renderSalary() {
+  const r=calculate();
+  const c=r.c;
+
+  $("paidHolidayPay").value=r.paidPay;
+  $("unpaidHolidayPay").value=r.absentPay;
+  $("inHand").textContent=money(r.inHand);
+  $("inHandBottom").textContent=money(r.inHand);
+
+  $("salaryBreakdown").innerHTML=[
+    ["Monthly gross salary",money(state.salary.gross)],
+    ["Daily wage",money(r.daily)],
+    ["Present days",c.present],
+    ["Absent days",c.absent],
+    ["Paid holidays",c.paid],
+    ["Unpaid holidays",c.unpaid],
+    ["Total payable days",c.payable],
+    ["Earned gross salary",money(r.earned)],
+    ["Employee PF deduction","− "+money(r.pfDed)],
+    ["Other deductions","− "+money(r.other)],
+    ["Travel adjustment",(r.travelEffect<0?"− ":r.travelEffect>0?"+ ":"")+money(Math.abs(r.travelEffect))]
+  ].map((x,i)=>`
+    <div class="result-line ${i===7?'total-line':''}">
+      <span>${x[0]}</span><b>${x[1]}</b>
+    </div>`).join("");
+
+  $("salaryMeta").textContent=
+    `${state.salary.method==="calendar"?"Calendar-day":"Working-day"} method · ${r.denom} calculation days · Attendance ${c.percent}% · Employer PF is not deducted from this amount.`;
+
+  $("salaryStats").innerHTML=
+    statCard("Daily wage",money(r.daily),"Based on selected method","◷")+
+    statCard("Payable days",c.payable,"Present + paid holidays","✓")+
+    statCard("Total deductions",money(r.pfDed+r.other+(r.travelEffect<0?Math.abs(r.travelEffect):0)),"Employee-side deductions","−")+
+    statCard("Attendance",c.percent+"%","For selected month","▦");
+
+  renderDashboard();
+}
+
+function renderAttendance() {
+  const key=currentAttKey();
+  const [y,m]=key.split("-").map(Number);
+  const first=new Date(y,m-1,1).getDay();
+  const n=daysIn(key);
+  const c=countAttendance(key);
+
+  $("calendarTitle").textContent=
+    monthDate(key).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+
+  $("attendanceStats").innerHTML=
+    statCard("Present days",c.present,"Working days marked present","✓","#e5f7ef","#21966d")+
+    statCard("Absent days",c.absent,"Unpaid absence","×","#fff0f0","#d65f6a")+
+    statCard("Paid holidays",c.paid,"Included in payable days","★","#fff6df","#c18a28")+
+    statCard("Attendance rate",c.percent+"%","Present + paid holidays","◉");
+
+  let html="";
+
+  for(let i=0;i<first;i++)
+    html+='<div class="calendar-day empty"></div>';
+
+  for(let d=1;d<=n;d++) {
+    const status=getStatus(key,d);
+    const todayFlag=key===monthKey(today)&&d===today.getDate();
+
+    const label={
+      present:"Present",
+      absent:"Absent",
+      paid:"Paid holiday",
+      unpaid:"Unpaid holiday",
+      off:"Non-working"
+    }[status];
+
+    html+=`<button class="calendar-day ${status} ${todayFlag?'today':''}"
+      data-day="${d}" title="${d}: ${label}">
+      <span class="day-num">${d}</span>
+      <span class="day-status">${label}</span>
+    </button>`;
+  }
+
+  $("calendarGrid").innerHTML=html;
+  renderLogs(key);
+}
+
+function renderLogs(key) {
+  const logs=(state.logs[key]||[]).slice().reverse().slice(0,12);
+
+  $("attendanceLog").innerHTML=logs.length?
+    logs.map(x=>`<div class="log-item">
+      <span><b>${x.day} ${monthDate(key).toLocaleDateString("en-IN",{month:"short"})}</b> · ${x.from} → ${x.to}</span>
+      <small>${new Date(x.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</small>
+    </div>`).join("") :
+    '<div class="empty-state">No changes yet.</div>';
+}
+
 function renderPF() {
   const p=pfCalc();
 
@@ -550,8 +1094,6 @@ function printAttendance() {
   w.document.close();
 }
 
-
-
 function bind() {
   document.querySelectorAll("[data-view]").forEach(b=>
     b.addEventListener("click",()=>nav(b.dataset.view))
@@ -955,5 +1497,3 @@ function init() {
 init();
 
 })();
-
-
